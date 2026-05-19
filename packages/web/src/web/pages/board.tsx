@@ -22,6 +22,7 @@ import { api } from "../lib/api";
 import { Task, TaskStatus, COLUMNS } from "../types";
 import StickyCard from "../components/StickyCard";
 import TaskModal from "../components/TaskModal";
+import Loader from "../components/Loader";
 import { Search, Plus } from "lucide-react";
 
 function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
@@ -70,10 +71,9 @@ export default function BoardPage() {
     mutationFn: async (updates: { id: number; status: string; order: number }[]) => {
       await Promise.all(
         updates.map(u =>
-          fetch(`/api/tasks/${u.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: u.status, order: u.order }),
+          api.tasks[":id"].$patch({
+            param: { id: String(u.id) },
+            json: { status: u.status, order: u.order },
           })
         )
       );
@@ -142,11 +142,7 @@ export default function BoardPage() {
   }
 
   if (isLoading && tasks.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <Loader />;
   }
 
   return (

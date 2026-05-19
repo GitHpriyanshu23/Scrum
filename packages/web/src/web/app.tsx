@@ -1,46 +1,62 @@
 import { Route, Switch } from "wouter";
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import Sidebar from "./components/Sidebar";
-import Dashboard from "./pages/index";
-import BoardPage from "./pages/board";
-import TimelinePage from "./pages/timeline";
-import TaskModal from "./components/TaskModal";
 import LandingPage from "./pages/landing";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Loader from "./components/Loader";
+
+// Lazy load heavy pages — keeps initial bundle small
+const Dashboard = lazy(() => import("./pages/index"));
+const BoardPage = lazy(() => import("./pages/board"));
+const TimelinePage = lazy(() => import("./pages/timeline"));
+const TaskModal = lazy(() => import("./components/TaskModal"));
+const LoginPage = lazy(() => import("./pages/login"));
+
+const PageLoader = () => <Loader />;
 
 function AppShell() {
   const [showNewTask, setShowNewTask] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen bg-[#fafaf8]" style={{ overflow: "hidden" }}>
-      <Sidebar
-        onNewTask={() => setShowNewTask(true)}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(v => !v)}
-      />
-      <main className="flex-1 overflow-hidden">
-        <Switch>
-          <Route path="/app" component={Dashboard} />
-          <Route path="/app/board" component={BoardPage} />
-          <Route path="/app/timeline" component={TimelinePage} />
-        </Switch>
-      </main>
-      {showNewTask && (
-        <TaskModal
-          task={null}
-          onClose={() => setShowNewTask(false)}
-          isNew
+    <ProtectedRoute>
+      <div className="flex h-screen bg-[#fafaf8]" style={{ overflow: "hidden" }}>
+        <Sidebar
+          onNewTask={() => setShowNewTask(true)}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(v => !v)}
         />
-      )}
-    </div>
+        <main className="flex-1 overflow-hidden">
+          <Suspense fallback={<PageLoader />}>
+            <Switch>
+              <Route path="/app" component={Dashboard} />
+              <Route path="/app/board" component={BoardPage} />
+              <Route path="/app/timeline" component={TimelinePage} />
+            </Switch>
+          </Suspense>
+        </main>
+        {showNewTask && (
+          <Suspense fallback={null}>
+            <TaskModal
+              task={null}
+              onClose={() => setShowNewTask(false)}
+              isNew
+            />
+          </Suspense>
+        )}
+      </div>
+    </ProtectedRoute>
   );
 }
 
 export default function App() {
   return (
-    <Switch>
-      <Route path="/" component={LandingPage} />
-      <Route component={AppShell} />
-    </Switch>
+    <Suspense fallback={<PageLoader />}>
+      <Switch>
+        <Route path="/" component={LandingPage} />
+        <Route path="/login" component={LoginPage} />
+        <Route component={AppShell} />
+      </Switch>
+    </Suspense>
   );
 }

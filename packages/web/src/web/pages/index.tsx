@@ -4,6 +4,7 @@ import { Task, COLUMNS } from "../types";
 import { Link } from "wouter";
 import { Separator } from "../components/ui/separator";
 import { Badge } from "../components/ui/badge";
+import Loader from "../components/Loader";
 
 function noteColorHex(c: string) {
   const m: Record<string, string> = {
@@ -63,7 +64,7 @@ export default function Dashboard() {
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+            <Loader />
           </div>
         ) : (
           <>

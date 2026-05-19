@@ -1,7 +1,10 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Columns3, Clock, Plus, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LayoutDashboard, Columns3, Clock, Plus, PanelLeftClose, PanelLeftOpen, LogOut } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "../lib/utils";
+import { useState, useEffect, useRef } from "react";
+import { supabase } from "../lib/supabase";
+import type { User } from "@supabase/supabase-js";
 
 const nav = [
   { href: "/app",          icon: LayoutDashboard, label: "Dashboard" },
@@ -17,12 +20,45 @@ interface Props {
 
 export default function Sidebar({ onNewTask, collapsed, onToggle }: Props) {
   const [location] = useLocation();
+  const [user, setUser] = useState<User | null>(null);
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
+    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    window.location.href = "/";
+  }
+
+  const avatar = user?.user_metadata?.avatar_url ?? user?.user_metadata?.picture ?? "";
+  const name   = user?.user_metadata?.full_name ?? user?.user_metadata?.name ?? "User";
+  const email  = user?.email ?? "";
+  const initials = name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase();
 
   return (
     <aside
+      onClick={collapsed ? onToggle : undefined}
       className={cn(
         "flex flex-col h-screen flex-shrink-0 bg-[#fafaf8] border-r border-zinc-200 transition-all duration-200",
-        collapsed ? "w-[52px]" : "w-[220px]"
+        collapsed ? "w-[52px] cursor-pointer" : "w-[220px]"
       )}
     >
       {/* Wordmark / toggle row */}
@@ -89,13 +125,59 @@ export default function Sidebar({ onNewTask, collapsed, onToggle }: Props) {
         })}
       </nav>
 
-      {/* Footer */}
-      {!collapsed && (
-        <div className="px-5 py-4 border-t border-zinc-200">
-          <p className="font-mono text-[10px] tracking-widest uppercase text-zinc-400">Project Board</p>
-          <p className="font-mono text-[10px] text-zinc-300 mt-0.5">v1.0</p>
-        </div>
-      )}
+      {/* Profile avatar + dropdown */}
+      <div
+        ref={dropdownRef}
+        className={cn("border-t border-zinc-200 relative", collapsed ? "px-2 py-3 flex justify-center" : "px-4 py-3")}
+      >
+        {/* Dropdown */}
+        {open && (
+          <div className={cn(
+            "absolute bottom-full mb-2 bg-white border border-zinc-200 shadow-lg z-50",
+            collapsed ? "left-12 w-52" : "left-4 right-4"
+          )}>
+            {/* User info */}
+            <div className="px-4 py-3 border-b border-zinc-100">
+              <p className="font-nav text-[13px] text-zinc-900 truncate">{name}</p>
+              <p className="font-mono text-[10px] text-zinc-400 truncate mt-0.5">{email}</p>
+            </div>
+            {/* Logout */}
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 font-nav text-[13px] text-zinc-600 hover:text-black hover:bg-zinc-50 transition-colors"
+            >
+              <LogOut size={13} />
+              Sign out
+            </button>
+          </div>
+        )}
+
+        {/* Avatar button */}
+        <button
+          onClick={() => setOpen(v => !v)}
+          className={cn(
+            "flex items-center gap-2.5 w-full group",
+            collapsed && "justify-center"
+          )}
+          title={collapsed ? name : undefined}
+        >
+          {/* Avatar */}
+          <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 border border-zinc-200">
+            {avatar
+              ? <img src={avatar} alt={name} className="w-full h-full object-cover" />
+              : <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+                  <span className="font-mono text-[10px] text-white">{initials}</span>
+                </div>
+            }
+          </div>
+          {/* Name — only when expanded */}
+          {!collapsed && (
+            <div className="flex-1 min-w-0 text-left">
+              <p className="font-nav text-[12px] text-zinc-700 truncate group-hover:text-black transition-colors">{name}</p>
+            </div>
+          )}
+        </button>
+      </div>
     </aside>
   );
 }

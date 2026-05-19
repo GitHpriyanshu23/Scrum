@@ -35,6 +35,7 @@ export default function StickyCard({ task, onClick }: Props) {
     transition,
     opacity: isDragging ? 0.25 : 1,
     cursor: isDragging ? "grabbing" : "grab",
+    touchAction: "none",
   };
 
   const tags = task.tags ? task.tags.split(",").filter(Boolean) : [];
