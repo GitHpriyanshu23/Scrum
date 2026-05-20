@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { cors } from "hono/cors";
-import { createClient } from "@supabase/supabase-js";
 import { db } from "./database/index.js";
 import * as schema from "./database/schema.js";
 import { eq, and, desc, asc } from "drizzle-orm";
@@ -8,10 +7,9 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import jwt from "jsonwebtoken";
 
-// Load env from root .env manually — only needed for local dev (Vite module runner)
-// On Vercel, process.env is populated directly from the dashboard
+// Load env from root .env manually — only needed for local dev
 function loadEnvVars() {
-  if (process.env.VERCEL) return; // skip on Vercel
+  if (process.env.VERCEL) return;
   try {
     const envPath = resolve(process.cwd(), "../../.env");
     const content = readFileSync(envPath, "utf-8");
@@ -30,45 +28,30 @@ loadEnvVars();
 
 type Variables = { userId: string };
 
-// Single shared Supabase admin client — only used for user upsert, NOT for auth verify
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+// Upsert user directly from JWT claims — no extra network call needed
+// Supabase JWT contains email + user_metadata
+function upsertUser(decoded: any) {
+  const userId = decoded.sub;
+  const email = decoded.email ?? "";
+  const meta = decoded.user_metadata ?? {};
+  const name = meta.full_name ?? meta.name ?? "";
+  const avatarUrl = meta.avatar_url ?? meta.picture ?? "";
 
-// Fire-and-forget user upsert — don't block requests on this
-function upsertUser(userId: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (supabaseAdmin.auth as any).admin.getUserById(userId).then(({ data, error }: any) => {
-    if (error || !data.user) return;
-    const u = data.user;
-    db.insert(schema.users).values({
-      id: u.id,
-      email: u.email ?? "",
-      name: u.user_metadata?.full_name ?? u.user_metadata?.name ?? "",
-      avatarUrl: u.user_metadata?.avatar_url ?? u.user_metadata?.picture ?? "",
-      lastSeenAt: new Date(),
-    }).onConflictDoUpdate({
+  db.insert(schema.users)
+    .values({ id: userId, email, name, avatarUrl, lastSeenAt: new Date() })
+    .onConflictDoUpdate({
       target: schema.users.id,
-      set: {
-        email: u.email ?? "",
-        name: u.user_metadata?.full_name ?? u.user_metadata?.name ?? "",
-        avatarUrl: u.user_metadata?.avatar_url ?? u.user_metadata?.picture ?? "",
-        lastSeenAt: new Date(),
-      },
-    }).catch(() => {});
-  }).catch(() => {});
+      set: { email, name, avatarUrl, lastSeenAt: new Date() },
+    })
+    .catch((err: any) => {
+      console.error("upsertUser failed:", err?.message ?? err);
+    });
 }
-
-// Track recently seen users to avoid upsert on every single request
-const recentUsers = new Map<string, number>();
-const UPSERT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 const app = new Hono<{ Variables: Variables }>()
   .use(cors({ origin: (origin) => origin ?? "*", credentials: true }))
 
-  // Auth middleware — decode JWT locally (no network call), O(1) fast
+  // Auth middleware — decode JWT locally, no network call
   .use("/api/*", async (c, next) => {
     if (c.req.path === "/api/health") return next();
 
@@ -78,24 +61,19 @@ const app = new Hono<{ Variables: Variables }>()
     }
     const token = authHeader.slice(7);
 
-    // Decode without verify — tokens come from Supabase, short-lived, internal API
-    const decoded = jwt.decode(token) as { sub?: string; exp?: number } | null;
+    const decoded = jwt.decode(token) as { sub?: string; exp?: number; email?: string; user_metadata?: any } | null;
     if (!decoded?.sub) return c.json({ error: "Unauthorized" }, 401);
 
-    // Check expiry locally
+    // Check expiry
     if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {
-      return c.json({ error: "Unauthorized" }, 401);
+      return c.json({ error: "Token expired" }, 401);
     }
 
-    const userId = decoded.sub;
-    c.set("userId", userId);
+    c.set("userId", decoded.sub);
 
-    // Upsert user at most once per 5 minutes per user (fire-and-forget, non-blocking)
-    const lastSeen = recentUsers.get(userId) ?? 0;
-    if (Date.now() - lastSeen > UPSERT_INTERVAL_MS) {
-      recentUsers.set(userId, Date.now());
-      upsertUser(userId);
-    }
+    // Always upsert — serverless has no persistent memory so in-memory cache is useless
+    // onConflictDoUpdate is idempotent and fast
+    upsertUser(decoded);
 
     return next();
   })
@@ -115,7 +93,7 @@ const app = new Hono<{ Variables: Variables }>()
     const body = await c.req.json();
     const existing = await db.select().from(schema.tasks)
       .where(and(eq(schema.tasks.userId, userId), eq(schema.tasks.status, body.status ?? "todo")));
-    const maxOrder = existing.reduce((m, t) => Math.max(m, t.order), -1);
+    const maxOrder = existing.reduce((m: number, t: any) => Math.max(m, t.order), -1);
     const [task] = await db.insert(schema.tasks).values({
       userId,
       title: body.title,
@@ -131,7 +109,6 @@ const app = new Hono<{ Variables: Variables }>()
     return c.json({ task }, 201);
   })
 
-  // reorder MUST be before /:id so Hono doesn't match "reorder" as an id
   .post("/tasks/reorder", async (c) => {
     const userId = c.get("userId");
     const body = await c.req.json();

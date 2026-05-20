@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import Sidebar from "./components/Sidebar";
 import LandingPage from "./pages/landing";
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute, { useSession } from "./components/ProtectedRoute";
 import Dashboard from "./pages/index";
 import BoardPage from "./pages/board";
 import TimelinePage from "./pages/timeline";
@@ -15,10 +15,12 @@ import { Task } from "./types";
 function AppShell() {
   const [showNewTask, setShowNewTask] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const session = useSession();
   const qc = useQueryClient();
 
-  // Prefetch tasks the moment the shell mounts — data ready before you click any page
+  // Only prefetch AFTER we have a valid session+token
   useEffect(() => {
+    if (!session?.access_token) return;
     qc.prefetchQuery({
       queryKey: ["tasks"],
       queryFn: async () => {
@@ -27,7 +29,7 @@ function AppShell() {
       },
       staleTime: 5 * 60 * 1000,
     });
-  }, []);
+  }, [session?.access_token]);
 
   return (
     <ProtectedRoute>
