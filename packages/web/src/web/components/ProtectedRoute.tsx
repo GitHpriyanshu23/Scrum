@@ -24,12 +24,25 @@ function getInitialSession(): Session | null {
 
 const SessionContext = createContext<Session | null | undefined>(undefined);
 
+// If URL hash has access_token, Supabase is about to process it — don't read localStorage yet
+function hasOAuthCallback(): boolean {
+  try {
+    return window.location.hash.includes("access_token");
+  } catch {
+    return false;
+  }
+}
+
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  // Initialize from localStorage — instant, no flicker
-  const [session, setSession] = useState<Session | null | undefined>(() => getInitialSession());
+  // If OAuth callback, start as undefined (spinner) so we wait for Supabase to process hash
+  // Otherwise read from localStorage — instant, no flicker
+  const [session, setSession] = useState<Session | null | undefined>(() =>
+    hasOAuthCallback() ? undefined : getInitialSession()
+  );
 
   useEffect(() => {
     // Sync with Supabase in background (refreshes token if needed)
+    // For OAuth callback, this will process the hash and fire onAuthStateChange
     supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null));
     const { data: listener } = supabase.auth.onAuthStateChange((_e, s) => setSession(s ?? null));
     return () => listener.subscription.unsubscribe();
