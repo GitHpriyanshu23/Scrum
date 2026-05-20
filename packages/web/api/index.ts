@@ -1,6 +1,7 @@
-import { handle } from "@hono/node-server/vercel";
 import app from "../src/api/index";
 
-export const config = { api: { bodyParser: false } };
+export const config = { runtime: "nodejs20.x" };
 
-export default handle(app);
+export default async function handler(req: Request) {
+  return app.fetch(req);
+}

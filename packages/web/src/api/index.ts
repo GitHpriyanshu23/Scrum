@@ -38,8 +38,8 @@ const supabaseAdmin = createClient(
 );
 
 // Fire-and-forget user upsert — don't block requests on this
-function upsertUser(token: string) {
-  supabaseAdmin.auth.getUser(token).then(({ data, error }) => {
+function upsertUser(userId: string) {
+  supabaseAdmin.auth.admin.getUserById(userId).then(({ data, error }) => {
     if (error || !data.user) return;
     const u = data.user;
     db.insert(schema.users).values({
@@ -93,7 +93,7 @@ const app = new Hono<{ Variables: Variables }>()
     const lastSeen = recentUsers.get(userId) ?? 0;
     if (Date.now() - lastSeen > UPSERT_INTERVAL_MS) {
       recentUsers.set(userId, Date.now());
-      upsertUser(token);
+      upsertUser(userId);
     }
 
     return next();
