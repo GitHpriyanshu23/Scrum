@@ -22,7 +22,7 @@ import { api } from "../lib/api";
 import { Task, TaskStatus, COLUMNS } from "../types";
 import StickyCard from "../components/StickyCard";
 import TaskModal from "../components/TaskModal";
-import Loader from "../components/Loader";
+
 import { Search, Plus } from "lucide-react";
 
 function DroppableColumn({ id, children }: { id: string; children: React.ReactNode }) {
@@ -47,7 +47,7 @@ export default function BoardPage() {
   const [search, setSearch] = useState("");
 
   // ── Single source of truth: React Query cache ──
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ["tasks"],
     queryFn: async () => {
       const res = await api.tasks.$get();
@@ -139,10 +139,6 @@ export default function BoardPage() {
 
     // Only save the dragged task's new status — nothing else
     reorderMutation.mutate([{ id: dragged.id, status: targetStatus, order: dragged.order }]);
-  }
-
-  if (isLoading && tasks.length === 0) {
-    return <Loader />;
   }
 
   return (

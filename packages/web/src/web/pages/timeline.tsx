@@ -5,7 +5,7 @@ import { Task, COLUMNS } from "../types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
-import Loader from "../components/Loader";
+
 
 function noteColorHex(c: string) {
   const m: Record<string, string> = {
@@ -24,7 +24,7 @@ export default function TimelinePage() {
   const [month, setMonth] = useState(today.getMonth());
   const [picked, setPicked] = useState<Task | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ["tasks"],
     queryFn: async () => {
       const res = await api.tasks.$get();
@@ -77,13 +77,8 @@ export default function TimelinePage() {
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader />
-          </div>
-        ) : (
-          <>
-            {/* Calendar */}
+        <>
+          {/* Calendar */}
             <div className="border border-zinc-200 bg-white overflow-hidden">
               {/* Weekday row */}
               <div className="grid grid-cols-7 border-b border-zinc-200">
@@ -200,8 +195,7 @@ export default function TimelinePage() {
                 </div>
               </div>
             )}
-          </>
-        )}
+        </>
       </div>
 
       {/* Floating task detail */}
