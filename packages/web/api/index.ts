@@ -1,4 +1,5 @@
 import app from "../src/api/index.js";
+export type { AppType } from "../src/api/index.js";
 
 export const config = { runtime: "nodejs" };
 

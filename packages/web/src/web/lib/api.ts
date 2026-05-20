@@ -1,23 +1,27 @@
 import { hc } from "hono/client";
-import type { AppType } from "../../api";
+import type { AppType } from "../../api/index";
 import { supabase } from "./supabase";
 
-// Cache token at module level — no async call on every request
-let cachedToken = "";
+// Always get a fresh token — never stale
+async function getToken(): Promise<string> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? "";
+}
 
-// Warm up immediately
+// Also keep a cached copy for sync access
+let cachedToken = "";
 supabase.auth.getSession().then(({ data }) => {
   cachedToken = data.session?.access_token ?? "";
 });
-
-// Keep in sync with auth state changes
 supabase.auth.onAuthStateChange((_event, session) => {
   cachedToken = session?.access_token ?? "";
 });
 
 const client = hc<AppType>("/", {
-  headers: () => {
-    return cachedToken ? { Authorization: `Bearer ${cachedToken}` } : {};
+  headers: async () => {
+    // Use cached token if available, otherwise fetch fresh
+    const token = cachedToken || (await getToken());
+    return token ? { Authorization: `Bearer ${token}` } : {};
   },
 });
 

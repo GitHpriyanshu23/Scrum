@@ -2,18 +2,23 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema.js";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  max: 10,
-  idleTimeoutMillis: 30_000,   // release idle connections after 30s
-  connectionTimeoutMillis: 5_000,
-  allowExitOnIdle: false,
-});
+// Single pool — reused across invocations in the same container
+let pool: Pool | null = null;
 
-// Swallow pool errors — prevents uncaught exceptions on stale connections
-pool.on("error", (_err, _client) => {
-  // silent — bad clients are automatically evicted by pg-pool
-});
+function getPool(): Pool {
+  if (!pool) {
+    pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+      max: 3,                          // low max for serverless
+      idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 5_000,
+    });
+    pool.on("error", () => {
+      pool = null; // reset on error so next call gets a fresh pool
+    });
+  }
+  return pool;
+}
 
-export const db = drizzle(pool, { schema });
+export const db = drizzle(getPool(), { schema });
