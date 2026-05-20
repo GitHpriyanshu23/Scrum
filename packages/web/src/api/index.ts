@@ -30,21 +30,18 @@ type Variables = { userId: string };
 
 // Upsert user directly from JWT claims — no extra network call needed
 // Supabase JWT contains email + user_metadata
-function upsertUser(decoded: any) {
+async function upsertUser(decoded: any) {
   const userId = decoded.sub;
   const email = decoded.email ?? "";
   const meta = decoded.user_metadata ?? {};
   const name = meta.full_name ?? meta.name ?? "";
   const avatarUrl = meta.avatar_url ?? meta.picture ?? "";
 
-  db.insert(schema.users)
+  await db.insert(schema.users)
     .values({ id: userId, email, name, avatarUrl, lastSeenAt: new Date() })
     .onConflictDoUpdate({
       target: schema.users.id,
       set: { email, name, avatarUrl, lastSeenAt: new Date() },
-    })
-    .catch((err: any) => {
-      console.error("upsertUser failed:", err?.message ?? err);
     });
 }
 
@@ -71,9 +68,14 @@ const app = new Hono<{ Variables: Variables }>()
 
     c.set("userId", decoded.sub);
 
-    // Always upsert — serverless has no persistent memory so in-memory cache is useless
-    // onConflictDoUpdate is idempotent and fast
-    upsertUser(decoded);
+    // MUST await — serverless kills the container right after response,
+    // fire-and-forget promises never complete
+    try {
+      await upsertUser(decoded);
+    } catch (err: any) {
+      console.error("upsertUser failed:", err?.message ?? err);
+      // Don't block the request — user is authed, DB write failing shouldn't 500
+    }
 
     return next();
   })
