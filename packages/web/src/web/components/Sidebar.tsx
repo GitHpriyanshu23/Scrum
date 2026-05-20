@@ -105,21 +105,21 @@ export default function Sidebar({ onNewTask, collapsed, onToggle }: Props) {
         {nav.map(({ href, icon: Icon, label }) => {
           const active = location === href;
           return (
-            <Link key={href} href={href}>
-              <span
-                title={collapsed ? label : undefined}
-                className={cn(
-                  "flex items-center cursor-pointer transition-colors",
-                  collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2",
-                  "font-nav",
-                  active
-                    ? "bg-black text-white"
-                    : "text-zinc-500 hover:text-black hover:bg-zinc-100"
-                )}
-              >
-                <Icon size={14} strokeWidth={active ? 2.5 : 1.75} />
-                {!collapsed && label}
-              </span>
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex items-center cursor-pointer transition-colors",
+                collapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2",
+                "font-nav",
+                active
+                  ? "bg-black text-white"
+                  : "text-zinc-500 hover:text-black hover:bg-zinc-100"
+              )}
+              title={collapsed ? label : undefined}
+            >
+              <Icon size={14} strokeWidth={active ? 2.5 : 1.75} />
+              {!collapsed && label}
             </Link>
           );
         })}
