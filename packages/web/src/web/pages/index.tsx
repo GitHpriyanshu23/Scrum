@@ -32,7 +32,7 @@ export default function Dashboard() {
       const res = await api.tasks.$get();
       return res.json() as Promise<{ tasks: Task[] }>;
     },
-    staleTime: 30_000,
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 

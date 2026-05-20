@@ -53,7 +53,7 @@ export default function BoardPage() {
       const res = await api.tasks.$get();
       return res.json() as Promise<{ tasks: Task[] }>;
     },
-    staleTime: 30_000,       // don't refetch within 30s
+    staleTime: 5 * 60 * 1000,       // don't refetch within 30s
     refetchOnWindowFocus: false,
   });
 

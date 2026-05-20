@@ -1,18 +1,13 @@
 import { Route, Switch } from "wouter";
-import { useState, lazy, Suspense } from "react";
+import { useState } from "react";
 import Sidebar from "./components/Sidebar";
 import LandingPage from "./pages/landing";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Loader from "./components/Loader";
-
-// Lazy load heavy pages — keeps initial bundle small
-const Dashboard = lazy(() => import("./pages/index"));
-const BoardPage = lazy(() => import("./pages/board"));
-const TimelinePage = lazy(() => import("./pages/timeline"));
-const TaskModal = lazy(() => import("./components/TaskModal"));
-const LoginPage = lazy(() => import("./pages/login"));
-
-const PageLoader = () => <Loader />;
+import Dashboard from "./pages/index";
+import BoardPage from "./pages/board";
+import TimelinePage from "./pages/timeline";
+import TaskModal from "./components/TaskModal";
+import LoginPage from "./pages/login";
 
 function AppShell() {
   const [showNewTask, setShowNewTask] = useState(false);
@@ -27,22 +22,18 @@ function AppShell() {
           onToggle={() => setSidebarCollapsed(v => !v)}
         />
         <main className="flex-1 overflow-hidden">
-          <Suspense fallback={<PageLoader />}>
-            <Switch>
-              <Route path="/app" component={Dashboard} />
-              <Route path="/app/board" component={BoardPage} />
-              <Route path="/app/timeline" component={TimelinePage} />
-            </Switch>
-          </Suspense>
+          <Switch>
+            <Route path="/app" component={Dashboard} />
+            <Route path="/app/board" component={BoardPage} />
+            <Route path="/app/timeline" component={TimelinePage} />
+          </Switch>
         </main>
         {showNewTask && (
-          <Suspense fallback={null}>
-            <TaskModal
-              task={null}
-              onClose={() => setShowNewTask(false)}
-              isNew
-            />
-          </Suspense>
+          <TaskModal
+            task={null}
+            onClose={() => setShowNewTask(false)}
+            isNew
+          />
         )}
       </div>
     </ProtectedRoute>
@@ -51,12 +42,10 @@ function AppShell() {
 
 export default function App() {
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Switch>
-        <Route path="/" component={LandingPage} />
-        <Route path="/login" component={LoginPage} />
-        <Route component={AppShell} />
-      </Switch>
-    </Suspense>
+    <Switch>
+      <Route path="/" component={LandingPage} />
+      <Route path="/login" component={LoginPage} />
+      <Route component={AppShell} />
+    </Switch>
   );
 }
