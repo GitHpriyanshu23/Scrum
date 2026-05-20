@@ -1,5 +1,7 @@
 import app from "../src/api/index.js";
 
+export const config = { runtime: "nodejs" };
+
 export default async function handler(req: any, res: any) {
   const host = req.headers["host"] ?? "localhost";
   const protocol = req.headers["x-forwarded-proto"] ?? "https";
