@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
 import { cors } from "hono/cors";
 import { createClient } from "@supabase/supabase-js";
-import { db } from "./database";
-import * as schema from "./database/schema";
+import { db } from "./database/index.js";
+import * as schema from "./database/schema.js";
 import { eq, and, desc, asc } from "drizzle-orm";
 import { readFileSync } from "fs";
 import { resolve } from "path";
@@ -39,7 +39,8 @@ const supabaseAdmin = createClient(
 
 // Fire-and-forget user upsert — don't block requests on this
 function upsertUser(userId: string) {
-  supabaseAdmin.auth.admin.getUserById(userId).then(({ data, error }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (supabaseAdmin.auth as any).admin.getUserById(userId).then(({ data, error }: any) => {
     if (error || !data.user) return;
     const u = data.user;
     db.insert(schema.users).values({
