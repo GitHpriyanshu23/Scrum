@@ -31,6 +31,7 @@
     "@runablehq/website-runtime": "^0.10.0",
     "@supabase/supabase-js": "^2.106.0",
     "@tanstack/react-query": "^5.100.6",
+    "@vercel/node": "^5.8.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
