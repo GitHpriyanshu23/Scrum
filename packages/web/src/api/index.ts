@@ -3,15 +3,29 @@ import { cors } from "hono/cors";
 import { db } from "./database/index.js";
 import * as schema from "./database/schema.js";
 import { eq, and, desc, asc } from "drizzle-orm";
-import { readFileSync } from "fs";
-import { resolve } from "path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import jwt from "jsonwebtoken";
 
 // Load env from root .env manually — only needed for local dev
 function loadEnvVars() {
   if (process.env.VERCEL) return;
   try {
-    const envPath = resolve(process.cwd(), "../../.env");
+    const envPathCandidates = [
+      resolve(process.cwd(), ".env"),
+      resolve(process.cwd(), "../.env"),
+      resolve(process.cwd(), "../../.env"),
+      resolve(process.cwd(), "../../../.env"),
+    ];
+    const envPath = envPathCandidates.find((candidate) => {
+      try {
+        readFileSync(candidate, "utf-8");
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    if (!envPath) return;
     const content = readFileSync(envPath, "utf-8");
     for (const line of content.split("\n")) {
       const trimmed = line.trim();
@@ -124,7 +138,7 @@ const app = new Hono<{ Variables: Variables }>()
 
   .get("/tasks/:id", async (c) => {
     const userId = c.get("userId");
-    const id = parseInt(c.req.param("id"));
+    const id = Number.parseInt(c.req.param("id"));
     const [task] = await db.select().from(schema.tasks)
       .where(and(eq(schema.tasks.id, id), eq(schema.tasks.userId, userId)));
     if (!task) return c.json({ error: "Not found" }, 404);
@@ -132,7 +146,7 @@ const app = new Hono<{ Variables: Variables }>()
   })
   .patch("/tasks/:id", async (c) => {
     const userId = c.get("userId");
-    const id = parseInt(c.req.param("id"));
+    const id = Number.parseInt(c.req.param("id"));
     const body = await c.req.json();
     const [task] = await db.update(schema.tasks)
       .set({ ...body, updatedAt: new Date() })
@@ -142,7 +156,7 @@ const app = new Hono<{ Variables: Variables }>()
   })
   .delete("/tasks/:id", async (c) => {
     const userId = c.get("userId");
-    const id = parseInt(c.req.param("id"));
+    const id = Number.parseInt(c.req.param("id"));
     await db.delete(schema.comments).where(eq(schema.comments.taskId, id));
     await db.delete(schema.tasks).where(and(eq(schema.tasks.id, id), eq(schema.tasks.userId, userId)));
     return c.json({ ok: true }, 200);
@@ -150,14 +164,14 @@ const app = new Hono<{ Variables: Variables }>()
 
   // --- COMMENTS ---
   .get("/tasks/:id/comments", async (c) => {
-    const taskId = parseInt(c.req.param("id"));
+    const taskId = Number.parseInt(c.req.param("id"));
     const comments = await db.select().from(schema.comments)
       .where(eq(schema.comments.taskId, taskId))
       .orderBy(asc(schema.comments.createdAt));
     return c.json({ comments }, 200);
   })
   .post("/tasks/:id/comments", async (c) => {
-    const taskId = parseInt(c.req.param("id"));
+    const taskId = Number.parseInt(c.req.param("id"));
     const body = await c.req.json();
     const [comment] = await db.insert(schema.comments).values({
       taskId,
@@ -167,7 +181,7 @@ const app = new Hono<{ Variables: Variables }>()
     return c.json({ comment }, 201);
   })
   .delete("/comments/:id", async (c) => {
-    const id = parseInt(c.req.param("id"));
+    const id = Number.parseInt(c.req.param("id"));
     await db.delete(schema.comments).where(eq(schema.comments.id, id));
     return c.json({ ok: true }, 200);
   })
