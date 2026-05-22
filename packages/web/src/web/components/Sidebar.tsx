@@ -74,7 +74,7 @@ export default function Sidebar({ onNewTask, collapsed, onToggle }: Props) {
           </div>
         )}
         <button
-          onClick={onToggle}
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
           className="text-zinc-400 hover:text-black transition-colors p-1 flex-shrink-0"
           title={collapsed ? "Open sidebar" : "Close sidebar"}
         >
