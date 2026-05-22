@@ -1,8 +1,12 @@
 {
-  "buildCommand": "cd packages/web && bun install && bunx vite build",
+  "buildCommand": "bunx turbo run build --filter=@template/web",
   "outputDirectory": "packages/web/dist",
   "installCommand": "bun install",
   "framework": null,
+  "engines": {
+    "node": "20.x",
+    "bun": "1.2.x"
+  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/(.*)",     "destination": "/index.html" }
